@@ -106,7 +106,7 @@ def build_queue(dir: str, outputcache: OutputCache):
         if fpath.is_dir():
             continue
         if not is_image(fpath.as_posix()):
-            log.warning('Skipping file: ' + fpath)
+            log.warning('Skipping file: %s' % fpath)
             continue
 
         basename, basesz = fpath.name, fpath.stat().st_size
@@ -143,7 +143,7 @@ if __name__ == '__main__':
     argp = argparse.ArgumentParser()
     argp.description = '''photo_reorganize aims to create a "shadow" directory structure to organize, by date, 
     all the original photos detected in your macOS Photos Library.
-    
+
     It does this by crawling an input directory (e.g. the entire Apple Photos Library) on disk, 
     extracting photo creation dates from EXIF data, 
     then creating a folder-per-day output directory structure where each photo is a hardlink to the 
