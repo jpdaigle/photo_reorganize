@@ -23,6 +23,12 @@ out/
 
 This approach does not duplicate any files and thus doesn't waste disk space.
 
+### Use Cases
+
+This is especially useful for the author, as it lets me mirror my entire photostream (which gets full-resolution photos from my phone through iCloud) onto a NAS, organized by date, using nothing more than `rsync`.
+
+Every week, I simply run `photo_reorganize` then rsync the resulting dir to upload newly-added files to the NAS.
+
 ## Usage
 
 ```
