@@ -21,6 +21,7 @@ out/
     etc...
 ```
 
+This approach does not duplicate any files and thus doesn't waste disk space.
 
 ## Usage
 
