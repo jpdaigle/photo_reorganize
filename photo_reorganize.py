@@ -43,7 +43,7 @@ class ExifFileWorker():
                 self.__queue.task_done()
 
 
-    def process_file(self, fname):
+    def get_exif(self, fname):
         proc_output = subprocess.run(
             ['exiftool', '-dateFormat',  '%Y-%m-%d', '-json', fname],
             text=True,
@@ -64,7 +64,7 @@ class ExifFileWorker():
         return None
 
     def extract_date(self, fname):
-        exifdate = self.process_image_exif_date(self.process_file(fname))
+        exifdate = self.process_image_exif_date(self.get_exif(fname))
         exifdate = 'No-Exif' if exifdate is None else exifdate
         return exifdate
 
@@ -141,8 +141,16 @@ def makelinks(detected_file: DatedFile, outputdir: str):
 if __name__ == '__main__':
 
     argp = argparse.ArgumentParser()
-    argp.add_argument('--dir', type=str, help='directory', default='.')
-    argp.add_argument('--outdir', type=str, help='output dir', default='./out')
+    argp.description = '''photo_reorganize aims to create a "shadow" directory structure to organize, by date, 
+    all the original photos detected in your macOS Photos Library.
+    
+    It does this by crawling an input directory (e.g. the entire Apple Photos Library) on disk, 
+    extracting photo creation dates from EXIF data, 
+    then creating a folder-per-day output directory structure where each photo is a hardlink to the 
+    original photo in the source directory.
+    '''
+    argp.add_argument('--dir', type=str, help='input directory (e.g. Photos Library originals)', default='.')
+    argp.add_argument('--outdir', type=str, help='output directory', default='./out')
     args = argp.parse_args()
 
     curdir = os.path.expanduser(args.dir)
