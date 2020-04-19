@@ -6,6 +6,7 @@ import re
 from queue import Queue, Empty
 from threading import Thread
 from pathlib import Path
+from collections import namedtuple
 import subprocess
 import argparse
 import json
@@ -14,6 +15,9 @@ import glob
 
 logging.basicConfig(level='INFO', stream=sys.stdout)
 log = logging.getLogger(__name__)
+
+DatedFile = namedtuple('DatedFile', 'path date')
+
 
 class FileWorker():
     def __init__(self, filequeue, output_queue = None):
@@ -26,7 +30,7 @@ class FileWorker():
                 fname = self.__queue.get(False)
                 if fname is None:
                     break
-                fdate = (fname, worker.extract_date(fname))
+                fdate = DatedFile(path=fname, date=worker.extract_date(fname))
                 log.info(fdate)
                 if self.__outputqueue:
                     self.__outputqueue.put(fdate)
@@ -109,25 +113,23 @@ def build_queue(dir: str, outputcache: OutputCache):
     return filequeue
 
 
-def makelinks(detected_file, outputdir):
-    fpath, exifdate = detected_file
-
-    if not fpath:
+def makelinks(detected_file: DatedFile, outputdir: str):
+    if not detected_file.path:
         raise ValueError('expected source file path')
-    if not exifdate:
+    if not detected_file.date:
         raise ValueError('expected exifdate')
 
-    wr_dir = os.path.join(outputdir, exifdate)
+    wr_dir = os.path.join(outputdir, detected_file.date)
     if not os.path.exists(wr_dir):
         os.makedirs(wr_dir)
     
-    lnk_name = os.path.join(wr_dir, os.path.basename(fpath))
+    lnk_name = os.path.join(wr_dir, os.path.basename(detected_file.path))
 
     if os.path.exists(lnk_name):
         log.info('Skipping %s, exists' % lnk_name)
     else:
-        log.info("Linking %s => %s" % (fpath, lnk_name))
-        os.link(fpath, lnk_name)
+        log.info("Linking %s => %s" % (detected_file.path, lnk_name))
+        os.link(detected_file.path, lnk_name)
 
 
 if __name__ == '__main__':
