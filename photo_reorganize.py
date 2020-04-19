@@ -19,7 +19,7 @@ log = logging.getLogger(__name__)
 DatedFile = namedtuple('DatedFile', 'path date')
 
 
-class FileWorker():
+class ExifFileWorker():
     def __init__(self, filequeue, output_queue = None):
         self.__queue = filequeue
         self.__outputqueue = output_queue
@@ -70,10 +70,13 @@ class FileWorker():
 
 
 class OutputCache(object):
-    def __init__(self, outdir):
+    '''
+    A simplistic file-skipping strategy: considers a file already existing if name + size match.
+    (Doesn't look at contents.)
+    '''
+    def __init__(self, outdir: str):
         super().__init__()
         exist_files = {}
-        
         for fpath in glob.glob(outdir + '/**', recursive=True):
             P = Path(fpath)
             if not P.is_file():
@@ -84,6 +87,11 @@ class OutputCache(object):
 
     def stat(self, basename):
         return self.exist_files.get(basename)
+
+    def exists(self, basename, size):
+        if not basename in self.exist_files:
+            return False
+        return size == self.exist_files.get(basename)
     
 
 def is_image(fname):
@@ -93,23 +101,21 @@ def build_queue(dir: str, outputcache: OutputCache):
     log.info("Processing dir: " + dir)
     filequeue = Queue(maxsize=0)
 
-    limit = -1
     for file in glob.iglob(dir + '/**', recursive=True):
-        if not is_image(file):
-            log.warning('Skipping file: ' + file)
+        fpath = Path(file).absolute()
+        if fpath.is_dir():
             continue
-        abs_filepath = os.path.abspath(file)
+        if not is_image(fpath.as_posix()):
+            log.warning('Skipping file: ' + fpath)
+            continue
 
-        pathobj = Path(abs_filepath)
-        basename, basesz = pathobj.name, pathobj.stat().st_size
-        if outputcache.stat(basename) == basesz:
+        basename, basesz = fpath.name, fpath.stat().st_size
+        if outputcache.exists(basename, basesz):
             # we already have a file with same name and size: good enough
-            log.info("Skip existing file: %s" % (abs_filepath))
+            log.info("Skip existing file: %s" % (fpath))
             continue
 
-        filequeue.put(abs_filepath)
-        limit -= 1
-        if limit == 0: break
+        filequeue.put(fpath.as_posix())
     return filequeue
 
 
@@ -137,10 +143,8 @@ if __name__ == '__main__':
     argp = argparse.ArgumentParser()
     argp.add_argument('--dir', type=str, help='directory', default='.')
     argp.add_argument('--outdir', type=str, help='output dir', default='./out')
-
     args = argp.parse_args()
 
-    #default_dir = '/Users/jpdaigle/Pictures/Photos Library.photoslibrary/originals/5'
     curdir = os.path.expanduser(args.dir)
     wr_dir = os.path.expanduser(args.outdir)
     outputcache = OutputCache(wr_dir)
@@ -149,7 +153,7 @@ if __name__ == '__main__':
 
     threads = []
     for i_thread in range(12):
-        worker = FileWorker(filequeue, output_queue)
+        worker = ExifFileWorker(filequeue, output_queue)
         th = Thread(target=worker.run)
         threads.append(th)
         th.start()
